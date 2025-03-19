@@ -34,7 +34,7 @@ nslookup $domaine > nslookup.txt
 # 3- theHavester
 #
 echo "les infos sur theHvester"
-theHavester $domaine > thehavester.txt
+theHarvester $domaine > thehavester.txt
 
 # 4-traceroute
 #
