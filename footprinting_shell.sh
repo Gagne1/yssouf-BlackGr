@@ -1,48 +1,53 @@
 #!/bin/bash
 
-#usage : ./footprinting.sh <domaine>
+# Vérification des arguments s'ils existent
 if [ "$#" -ne 1 ]; then
-	echo "usage : $0 domaine"
-	exit 1
+    echo "Utilisation: $0 <domaine-cible>"
+    exit 1
 fi
 
-#le repertoire de sortie
+cible=$1
+rep_principal="footprinting"
+rep_sorti="$rep_principal/footprinting_$cible"
+mkdir -p "$rep_sorti"
 
-domaine=$1
-repertoire="footprinting_$domaine"
+echo -e "\033[1;34m[+] Début du footprinting pour $cible\033[0m"
 
-mkdir -p "$repertoire"
-cd footprinting_$domaine
+# 1. Recherche DNS de base
+echo -e "\033[1;32m[+] Recherche DNS (nslookup/dig)...\033[0m"
+nslookup $cible > "$rep_sorti/dns_nslookup.txt"
+dig $cible ANY > "$rep_sorti/dns_dig.txt"
 
-# 1- WHOIS
+# 2. Analyse DNS  avec dnsrecon
+echo -e "\033[1;32m[+] Analyse dnsrecon...\033[0m"
+dnsrecon -d $cible > "$rep_sorti/dnsrecon.txt" 2>/dev/null
 
-echo "les infos de whois"
-whois $domaine > whois.txt
+# 3. Recherche WHOIS
+echo -e "\033[1;32m[+] Recherche WHOIS...\033[0m"
+whois $cible > "$rep_sorti/whois.txt"
 
-# 1-DIG
-echo "les infos de dig"
+# 4. Récupération d'informations avec theHarvester c'est a dire les emais,reseaux sociaux et hotes associés
+echo -e "\033[1;32m[+] Collecte de données avec theHarvester...\033[0m"
+theHarvester -d $cible -b all -f "$rep_sorti/theharvester" >/dev/null 2>&1
 
-dig $domaine ANY > dig.txt
-dig $domaine MX > dig_mx.txt
+# 5. Énumération des sous-domaines
+echo -e "\033[1;32m[+] Recherche de sous-domaines...\033[0m"
+sublist3r -d $cible -o "$rep_sorti/sublist3r.txt" >/dev/null 2>&1
 
-# 2-NSLOOKUP
+# 6. Scan de ports
+echo -e "\033[1;32m[+] Scan de ports...\033[0m"
+nmap -F -T3 $cible > "$rep_sorti/nmap_scan.txt"
 
-echo "les infos de nslookup"
+# 7. Vérification SSL/TLS
+echo -e "\033[1;32m[+] Vérification SSL/TLS...\033[0m"
+openssl s_client -connect $cible:443 -showcerts < /dev/null 2>/dev/null > "$rep_sorti/ssl_certificates.txt"
 
-nslookup $domaine > nslookup.txt
+# 8. Recherche de répertoires
+echo -e "\033[1;32m[+] Recherche de répertoires...\033[0m"
+gobuster dir -u https://$cible -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -t 30 -o "$rep_sorti/gobuster.txt" >/dev/null 2>&1
 
-# 3- theHavester
-#
-echo "les infos sur theHvester"
-theHarvester $domaine > thehavester.txt
+# 9. Téléchargement de l'index
+echo -e "\033[1;32m[+] Téléchargement de l'index...\033[0m"
+curl -s -L $cible > "$rep_sorti/index.html"
 
-# 4-traceroute
-#
-echo "les infos de traceroute"
-traceroute $domaine > traceroute.txt
-
-
-
-
-
-
+echo -e "\033[1;34m\n[+] Footprinting terminé. Résultats dans: $rep_sorti/\033[0m"
